@@ -1,41 +1,63 @@
-import { Inter } from "next/font/google";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function Home() {
   const [mail, setMail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [price, setPrice] = useState(0);
+  const [errMessage, setErrMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  const sendPrice = async (price: number) => {
+    try {
+      const resp = await fetch("http://localhost:3000/api/sendmail", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `BTC price is ${price}`,
+          to: mail,
+        }),
+      });
+      const data = await resp.json();
+      if (data.message) {
+        await setErrMessage("Invalid email");
+      } else {
+        await setInfoMessage("BTC current price sent!");
+        await setTimeout(() => setInfoMessage(null), 2000);
+      }
+    } catch (error: any) {
+      setErrMessage(error.message);
+    }
+  };
+
+  const getBTCPrice = async () => {
+    await setIsLoading(true);
+    const resp = await fetch(
+      "https://www.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+    );
+    const data = await resp.json();
+    await setPrice(data.price);
+    await setIsLoading(false);
+  };
 
   const handleChange = (e: any) => {
     setMail(e.target.value);
   };
-  const handleClick = () => {
-    setIsLoading(true);
-    fetch("https://api.emailjs.com/api/v1.0/email/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // 'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: JSON.stringify({
-        service_id: "service_a1b0lbu",
-        template_id: "template_btmxaco",
-        user_id: "_KnyogEhonTm2DIOo",
-        template_params: {
-          message: 20000,
-          reply_to: mail,
-        },
-        accessToken: "9am_KfSEgVPPIc5EG4bJe",
-      }),
-    }).finally(() => setIsLoading(true));
+  const handleClick = async () => {
+    await getBTCPrice();
+    await sendPrice(price);
   };
 
   return (
     <main
-      className={`flex min-h-screen flex-col items-center justify-center mt-20 `}
+      className={`flex  text-2xl min-h-screen flex-col items-center justify-center `}
     >
-      <div className="relative flex place-items-center before:absolute before:h-[200px] before:w-[200px] ">
-        {isLoading ? (
-          <h2 className={`mb-3 text-2xl font-semibold text-black`}>loading</h2>
+      <div className="relative flex place-items-center">
+        {isLoading || infoMessage ? (
+          <h2 className={`mb-3 font-semibold text-black`}>
+            {infoMessage || "loading..."}
+          </h2>
         ) : (
           <h2 className={`mb-3 text-2xl font-semibold text-black`}>
             BTC current price by Sher
@@ -44,21 +66,23 @@ export default function Home() {
       </div>
       <input
         onChange={handleChange}
-        className="shadow appearance-none border border-red-500 rounded py-10 px-20 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+        className="shadow mb-3 p-5 text-center m-5 w-2/5 appearance-none border border-red-500 rounded text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
         id="email"
         type="email"
         value={mail}
         placeholder="yourmail@gmail.com"
       />
-
       <button
         onClick={handleClick}
-        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"
+        className="mt-5 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center"
       >
-        Download
+        SEND
       </button>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left"></div>
+      {errMessage && (
+        <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
+          {errMessage}
+        </div>
+      )}{" "}
     </main>
   );
 }
